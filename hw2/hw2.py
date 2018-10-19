@@ -203,8 +203,3 @@ plt.plot(freq_f, Sv_f_array, 'r--',label = r'$S_v$')
 plt.xlabel(r'$\nu$(Hz)')
 plt.ylabel(r'$I_{\nu} (erg/s/cm^2/Hz/Sr)$')
 plt.legend()
-
-
-
-
-
