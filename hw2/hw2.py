@@ -23,7 +23,8 @@ Functions: getCross_Section(s, n, *args)-
                     e.g. sigma0 = 3e-24, then order = -24
                     Use this order of magnitude of sigma0 to get an effective freq range
                 form = linear, guassian, or constant
-                return = cross-section as fn of frequency of the specified form.
+             return = cross-section as fn of frequency of the specified form.
+Update 11/16/18:  Added plt.show() at the end and deleted plt.hold(True).
 """
 
 import numpy as np
@@ -147,7 +148,6 @@ Iv0_c_array = Iv0_c*np.ones(len(freq_c))
 Sv_c_array = Sv_c*np.ones(len(freq_c))
 Inten_c = getIntensity(S, sig_c, Iv0_c, Sv_c, n)
 plt.figure(6)
-plt.hold('True')
 plt.title(r'$I_v(0) < S_v, \tau_v(D) < 1$')
 plt.plot(freq_c, Inten_c, 'b')
 plt.plot(freq_c, Iv0_c_array,'c--' ,label = r'$I_v(0)$')
@@ -163,7 +163,6 @@ Iv0_d_array = Iv0_d*np.ones(len(freq_d))
 Sv_d_array = Sv_d*np.ones(len(freq_d))
 Inten_d = getIntensity(S, sig_d, Iv0_d, Sv_d, n)
 plt.figure(7)
-plt.hold('True')
 plt.title(r'$I_v(0) > S_v, \tau_v(D) < 1$')
 plt.plot(freq_d, Inten_d, 'b')
 plt.plot(freq_d, Iv0_d_array,'c--' ,label = r'$I_v(0)$')
@@ -179,7 +178,6 @@ Iv0_e_array = Iv0_e*np.ones(len(freq_e))
 Sv_e_array = Sv_e*np.ones(len(freq_e))
 Inten_e = getIntensity(S, sig_e, Iv0_e, Sv_e, n)
 plt.figure(8)
-plt.hold('True')
 plt.title(r'$I_v(0) < S_v, \tau_v(D) < 1, \tau_{v_0}(D) >1$ ')
 plt.plot(freq_e, Inten_e, 'b')
 plt.plot(freq_e, Iv0_e_array,'c--' ,label = r'$I_v(0)$')
@@ -195,7 +193,6 @@ Iv0_f_array = Iv0_f*np.ones(len(freq_f))
 Sv_f_array = Sv_f*np.ones(len(freq_f))
 Inten_f = getIntensity(S, sig_f, Iv0_f, Sv_f, n)
 plt.figure(9)
-plt.hold('True')
 plt.title(r'$I_v(0) > S_v, \tau_v(D) < 1, \tau_{v_0}(D) >1$ ')
 plt.plot(freq_f, Inten_f, 'b')
 plt.plot(freq_f, Iv0_f_array,'c--' ,label = r'$I_v(0)$')
@@ -203,3 +200,4 @@ plt.plot(freq_f, Sv_f_array, 'r--',label = r'$S_v$')
 plt.xlabel(r'$\nu$(Hz)')
 plt.ylabel(r'$I_{\nu} (erg/s/cm^2/Hz/Sr)$')
 plt.legend()
+plt.show()
