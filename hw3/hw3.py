@@ -17,9 +17,9 @@ Functions: euler(t0, r0, v0, dt, N, q1,q2,m,k)- uses the euler method to numeric
                 q1, q2 = charges(C) of the particles: electron and ion
                 m,k = mass of electron(kg), Couloumb's constant
                 outputs= return t (1D), r, v, a array of x and y components
-            getpower(t, s, v, dt, n, q1, q2, m, k, mode = 'Power')- FFT a and 
+            getpower(time, s, vel, dtp, n, q1, q2, m, k, mode = 'Power')- FFT a and 
                 compute a power spectrum.
-                t, s, v, dt, n, q1, q2, m, k= args for calling the euler fn
+                time, s, vel, dtp, n, q1, q2, m, k= args for calling the euler fn
                 mode = default to 'Power'-> only return the necessary components
                 for plotting the power spectrum wrt to freq.
 """
@@ -36,8 +36,8 @@ c = 3e8 #m/s, speed of light
 v0x = 5*0.001*c #initial velocity of the electron in x-direction
 v0y = 0
 a0 = 5.29e-11 #m: Bohr radius
-y0 = 300*a0 #~106Angstrom initial position of the electron, away from the ion
-x0 = -300*a0
+y0 = 1e3*a0 #initial position of the electron away from the ion in angstrom
+x0 = -1e4*a0
 k = 8.99e9 #N·m^2·C^−2: Couloumb constant
 q = 1.6e-19 #C : charge of electron
 z = 1  #ion #
@@ -78,8 +78,8 @@ def euler(t0, r0, v0, dt, N, q1,q2,m,k):
 r0 = np.array([x0, y0]) #in m
 v0 = np.array([v0x, v0y]) #m/s
 t0 = 0 #sec
-dt = 1e-17 #sec
-N = 5000
+dt = 1e-15 #sec
+N = 1000
 t, r, v,a = euler(t0, r0, v0, dt, N, z*q, -q, m, k)
 # net magnitude of position, velocity, and acceleration
 pos = np.sqrt(r[:,0]**2 + r[:,1]**2)
@@ -88,20 +88,22 @@ accel= np.sqrt(a[:,0]**2 + a[:,1]**2)
 
 ###############################################################################
 ########################### Power Spectrum ####################################
-def getpower(t, s, v, dt, n, q1, q2, m, k, mode = 'Power'):
-    tp, rp, vp, ap = euler(t, s, v, dt, N, q1, q2, m, k)
-    # Get a_net = net acceleration
-    a_tot = np.sqrt(ap[:,0]**2 + ap[:,1]**2)
-    ## Fourier Transform the acceleration
-    a_ft = np.fft.fft(a_tot)
+def getpower(time, s, vel, dtp, n, q1, q2, m, k, mode = 'Power'):
+    tp, rp, vp, ap = euler(time, s, vel, dtp, n, q1, q2, m, k)
+    # FT the x and y-component of acceleration
+    ax_ft = np.fft.fft(ap[:,0])
+    ay_ft = np.fft.fft(ap[:,1])
+    #angle between them
+    theta = np.arctan(rp[:,1]/rp[:,0])
+    # get only the radial component of the acceleration by dotting a_vector with r_hat
+    ar_ft = ax_ft*np.cos(theta) + ay_ft*np.sin(theta)
     # Get the associated freq of length n for a time step dt
-    f = np.fft.fftfreq(n, dt) #in Hz
+    f = np.fft.fftfreq(n, dtp) #in Hz
     # sort the freq bc f is given as 0 to +, the - to 0, so the alignment if off
     # need to get this series of indices so can use them for plotting the power
     # spectrum later on
     ind = np.argsort(f)
-    power = 2*q**2*abs(a_ft)**2/(3*c**3) #need to use abs(), np.conjugate doesn't work
-#    plt.figure(figorder)
+    power = 2*q**2*np.abs(ar_ft)**2/(3*c**3) #need to use abs(), np.conjugate doesn't work
 #    plt.plot(rp[:,0]/a0, rp[:,1]/a0)
 #    plt.xlabel(r'x ($a_0$)')
 #    plt.ylabel(r'y ($a_0$)')
@@ -120,16 +122,16 @@ b = [0.01*y0, 0.1*y0, 10*y0, 50*y0] #different impact parameters
 v0_i = [0.01*v0, 0.1*v0, 10*v0, 50*v0] #different initial velocities
 sb = len(b)
 # vary b only:
-sb3= np.array([x0, b[3]])
+dt1 = 1e-14
 sb2= np.array([x0, b[2]])
-indb3, fb3, pb3 = getpower(t0, sb3, v0, dt, N, z*q, -q, m, k)
-indb2, fb2, pb2 = getpower(t0, sb2, v0, dt, N, z*q, -q, m, k)
+indb2, fb2, pb2 = getpower(t0, sb2, v0, dt1,N, z*q, -q, m, k)
 # vary v0 only:
 indv2, fv2, pv2 = getpower(t0, r0, v0_i[2], dt, N, z*q, -q, m, k)
 indv3, fv3, pv3 = getpower(t0, r0, v0_i[3], dt, N, z*q, -q, m, k)
 
 ###############################################################################
 ############################## Plotting #######################################
+
 # position
 f,(f1,f2,f3)= plt.subplots(3,sharex = True)
 f1.plot(t*1e18, r[:, 0]/a0)
@@ -140,6 +142,7 @@ f3.plot(t*1e18, pos/a0)
 f3.set_ylabel(r'$r (a_0)$')
 f3.set_xlabel('Time (attosec)')
 f.suptitle(r'x-, y-position, and net position of the electron in unit of Bohr radius, $a_0$' )
+f.subplots_adjust(top=0.88, left = 0.2) 
 # velocity
 g,(g1,g2,g3)=plt.subplots(3, sharex = True)
 g1.plot(t*1e18, v[:, 0])
@@ -148,7 +151,7 @@ g2.plot(t*1e18, v[:, 1])
 g2.set_ylabel(r'$v_y$ (m/s)')
 g3.plot(t*1e18, vel)
 g3.set_xlabel('Time (as)')
-g3.set_ylabel(r'$v_{net}$ (m/s)')
+g3.set_ylabel(r'$|v_{net}|$ (m/s)')
 g.suptitle(r'$v_x$, $v_y$, and $|v_{net}|$ of the electron' )
 g.subplots_adjust(top=0.88, left = 0.2) 
 # acceleration
@@ -157,11 +160,11 @@ h1.plot(t*1e18, a[:, 0])
 h1.set_ylabel(r'$a_x (m/s^2)$')
 h2.plot(t*1e18, a[:, 1])
 h2.set_ylabel(r'$a_y (m/s^2)$')
-h3.plot(t*1e18, -accel)
-h3.set_ylabel(r'$a_{net} (m/s^2)$')
+h3.plot(t*1e18, accel) 
+h3.set_ylabel(r'$|a_{net}| (m/s^2)$')
 h3.set_xlabel('Time (as)')
 h.subplots_adjust(top=0.88, left = 0.15,right = 0.94) 
-h.suptitle(r'$a_x, a_y$, and $a_{net}$ of electron')
+h.suptitle(r'$a_x, a_y$, and $|a_{net}|$ of electron')
 # x vs y
 plt.figure(4)
 plt.title('y vs x position of the electron in unit of $a_0$')
@@ -171,20 +174,27 @@ plt.ylabel(r'y ($a_0$)')
 plt.xlim(x0/a0, -x0/a0+100)
 # Power spectrum
 plt.figure(5)
-plt.plot(freq[ind], P_net[ind], 'b-')
-plt.yscale('log')
+plt.plot(freq[ind], P_net[ind], 'b-', label = r'$b_0 = 1000a_0,v_{0x} = 0.005c$')
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('Power Radiated')
-# Experiment with Different parameters
-plt.figure(6)
-plt.plot(freq[ind], P_net[ind], 'k-', label = r'$b_0 = 300a_0,v_{0x} = 0.005c$')
-plt.plot(fb2[indb2], pb2[indb2], 'r--',label = r'b = $10b_0,v_{init,x} = v_{0x}$')
-plt.plot(fb3[indb3], pb3[indb3], 'm--',label = r'b = $50b_0,v_{init,x} = v_{0x}$')
-plt.plot(fv2[indv2], pv2[indv2], 'c--',label = r'b = $b_0,v_{init,x} = 10v_{0x}$')
-plt.plot(fv3[indv3], pv3[indv3], 'b--',label = r'b = $b_0,v_{init,x} = 500v_{0x}$')
-plt.yscale('log')
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Power Radiated')
+plt.xlim(0, 4e13)
 plt.legend()
+# Experiment with Different parameters
+p, (p1, p2, p3) = plt.subplots(3)
+p1.plot(fb2[indb2], pb2[indb2], 'r--',label = r'b = $10b_0,v_{init,x} = v_{0x}$')
+p1.set_xlim(-1e10, 2e13)
+p1.legend()
+p1.set_ylabel('Power Radiated')
+p2.plot(fv3[indv3], pv3[indv3], 'b--',label = r'b = $b_0,v_{init,x} = 500v_{0x}$')
+p2.set_ylabel('Power Radiated')
+p2.set_xlim(0, 3e13)
+p2.legend()
+plt.plot(fv2[indv2], pv2[indv2], 'c--',label = r'b = $b_0,v_{init,x} = 10v_{0x}$')
+p3.set_xlim(0, 2e14)
+p3.set_ylabel('Power Radiated')
+p3.legend()
+p3.set_xlabel('Frequency (Hz)')
+p.suptitle(r'Power Spectrum for different b and v with $b_0 = 1000a_0,v_{0x} = 0.005c$')
+p.subplots_adjust(top=0.88, left = 0.2, hspace = 0.5) 
 
 plt.show()
