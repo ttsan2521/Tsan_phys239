@@ -22,6 +22,8 @@ Functions: euler(t0, r0, v0, dt, N, q1,q2,m,k)- uses the euler method to numeric
                 time, s, vel, dtp, n, q1, q2, m, k= args for calling the euler fn
                 mode = default to 'Power'-> only return the necessary components
                 for plotting the power spectrum wrt to freq.
+            getpeak(frequency,Pspec) - get the peak Power and the associated freq
+                
 """
 
 import numpy as np
@@ -118,20 +120,61 @@ def getpower(time, s, vel, dtp, n, q1, q2, m, k, mode = 'Power'):
 ind, freq ,P_net = getpower(t0, r0, v0, dt, N, z*q, -q, m, k)
 ###############################################################################
 ########################### Different b and v0 ################################
-b = [0.01*y0, 0.1*y0, 10*y0, 50*y0] #different impact parameters
-v0_i = [0.01*v0, 0.1*v0, 10*v0, 50*v0] #different initial velocities
+b = np.array([0.5*y0, 0.8*y0, y0, 10*y0, 20*y0, 30*y0]) #different impact parameters
+v0_i = np.array([0.5*v0, v0, 10*v0, 20*v0, 30*v0]) #different initial velocities
 sb = len(b)
-# vary b only:
+## vary b only:
 dt1 = 1e-14
-sb2= np.array([x0, b[2]])
-indb2, fb2, pb2 = getpower(t0, sb2, v0, dt1,N, z*q, -q, m, k)
-# vary v0 only:
+dt3 = 1e-13
+sb0= np.array([x0, b[0]])
+sb1 = np.array([x0, b[1]])
+sb3= np.array([x0, b[3]])
+sb4 = np.array([x0, b[4]])
+sb5 = np.array([x0, b[5]])
+indb0, fb0, pb0 = getpower(t0, sb0, v0, dt,N, z*q, -q, m, k)
+indb1, fb1, pb1 = getpower(t0, sb1, v0, dt,N, z*q, -q, m, k)
+indb3, fb3, pb3 = getpower(t0, sb3, v0, dt1,N, z*q, -q, m, k)
+indb4, fb4, pb4 = getpower(t0, sb4, v0, dt3,N, z*q, -q, m, k)
+indb5, fb5, pb5 = getpower(t0, sb5, v0, dt3,N, z*q, -q, m, k)
+## vary v0 only:
+indv0, fv0, pv0 = getpower(t0, r0, v0_i[0], dt1, N, z*q, -q, m, k)
 indv2, fv2, pv2 = getpower(t0, r0, v0_i[2], dt, N, z*q, -q, m, k)
 indv3, fv3, pv3 = getpower(t0, r0, v0_i[3], dt, N, z*q, -q, m, k)
+indv4, fv4, pv4 = getpower(t0, r0, v0_i[4], dt, N, z*q, -q, m, k)
+
+#### Finding the peak:
+def getpeak(frequency,Pspec):
+    s = len(Pspec)
+    for i in range(s//2): 
+    ##only half of the spectrum bc did the FFT so there's 
+    #negative freq, and we only care about positive freq
+        if Pspec[i] == max(Pspec):
+            return i, frequency[i], Pspec[i]
+## vary b only:    
+i0b, fpeak0b, Ppeak0b = getpeak(fb0, pb0)
+i1b, fpeak1b, Ppeak1b = getpeak(fb1, pb1)
+i0, fpeak0, Ppeak0 = getpeak(freq,P_net) 
+i3b, fpeak3b, Ppeak3b = getpeak(fb3, pb3)
+i4b, fpeak4b, Ppeak4b = getpeak(fb4, pb4)
+i5b, fpeak5b, Ppeak5b = getpeak(fb5, pb5)
+## vary v0 only 
+i0v, fpeak0v, Ppeak0v = getpeak(fv0, pv0)
+i2v, fpeak2v, Ppeak2v = getpeak(fv2, pv2)
+i3v, fpeak3v, Ppeak3v = getpeak(fv3, pv3)
+i4v, fpeak4v, Ppeak4v = getpeak(fv4, pv4)
+fpeakb = np.array([fpeak0b,fpeak1b, fpeak0, fpeak3b, fpeak4b, fpeak5b])
+fpeakv = np.array([fpeak0v, fpeak0, fpeak2v, fpeak3v, fpeak4v])
+
+## fitting
+def fit(x, a2, a1, a0):
+    return a0+ a1*x + a2*(x**2)#+ a3*(x**3) +a4*(x**4)+ a5*(x**5)+ a6*(x**6)
+
+pb= np.polyfit(b, fpeakb,2)
+b_fit = np.linspace(b[0], b[len(b) -1], 50)
+fb_fit = fit(b_fit, pb[0], pb[1], pb[2])
 
 ###############################################################################
 ############################## Plotting #######################################
-
 # position
 f,(f1,f2,f3)= plt.subplots(3,sharex = True)
 f1.plot(t*1e18, r[:, 0]/a0)
@@ -181,7 +224,7 @@ plt.xlim(0, 4e13)
 plt.legend()
 # Experiment with Different parameters
 p, (p1, p2, p3) = plt.subplots(3)
-p1.plot(fb2[indb2], pb2[indb2], 'r--',label = r'b = $10b_0,v_{init,x} = v_{0x}$')
+p1.plot(fb3[indb3], pb3[indb3], 'r--',label = r'b = $10b_0,v_{init,x} = v_{0x}$')
 p1.set_xlim(-1e10, 2e13)
 p1.legend()
 p1.set_ylabel('Power Radiated')
@@ -196,5 +239,18 @@ p3.legend()
 p3.set_xlabel('Frequency (Hz)')
 p.suptitle(r'Power Spectrum for different b and v with $b_0 = 1000a_0,v_{0x} = 0.005c$')
 p.subplots_adjust(top=0.88, left = 0.2, hspace = 0.5) 
+# Frequency vs b/v0
+plt.figure(7)
+plt.subplot(121)
+plt.title('Vary Impact Parameters Only')
+plt.plot(b/a0, fpeakb, 'b-')
+plt.xlabel(r'b ($a_0$)')
+plt.ylabel('Frequency (Hz)')
+plt.subplot(122)
+plt.title(r'Vary $v_{0,x}$ Only. $v_{0,x}$ is in Unit of c')
+plt.plot(v0_i[:,0]/c, fpeakv, 'r-')
+plt.xlabel(r'$v_{0,x}$ (c)')
+plt.ylabel('Frequency (Hz)')
+
 
 plt.show()
